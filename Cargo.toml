@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bitcode = "0.6.9"
+futures-util = "0.3.34"
 interprocess = { version = "2.4.4", features = ["tokio"] }
 tokio = "1.53.1"
-tokio-util = "0.7.19"
+tokio-util = { version = "0.7.19", features = ["codec"] }
 tracing = "0.1.44"

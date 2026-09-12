@@ -1,13 +1,14 @@
-pub mod handlers;
+pub mod connection;
 
 use std::io::Result;
 
+use bitcode::Decode;
 use interprocess::local_socket::{GenericNamespaced, ListenerOptions, ToNsName, tokio::Listener, traits::tokio::Listener as _};
 use tokio::{select, spawn};
 use tokio_util::sync::CancellationToken;
-use tracing::{info, error, warn};
+use tracing::{info, warn};
 
-use crate::daemon::handlers::connection::handle_connection;
+use crate::daemon::connection::handle_connection;
 
 /// A named, asynchronous daemon.
 pub struct Daemon {
@@ -38,8 +39,11 @@ impl Daemon {
         )
     }
 
-    /// Consumes a `Daemon` and allows it to handle connections and requests. 
-    pub async fn run(self) {
+    /// Consumes a `Daemon` and allows it to handle connections and requests.
+    pub async fn run<RQ>(self)
+    where
+        for<'a> RQ: Decode<'a> + 'static
+    {
         loop {
             select! {
                 accepted = self.listener.accept() => {
@@ -47,7 +51,7 @@ impl Daemon {
                         Ok(stream) => {
                             let cancel = self.cancel.clone();
                             
-                            spawn(handle_connection(stream, cancel));
+                            spawn(handle_connection::<RQ>(stream, cancel));
                         }
                         Err(err) => {
                             warn!("failed to accept connection: {}", err);
