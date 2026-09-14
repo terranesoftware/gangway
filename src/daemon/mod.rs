@@ -2,7 +2,7 @@ pub mod connection;
 
 use std::io::Result;
 
-use bitcode::Decode;
+use bitcode::{Decode, Encode};
 use interprocess::local_socket::{GenericNamespaced, ListenerOptions, ToNsName, tokio::Listener, traits::tokio::Listener as _};
 use tokio::{select, spawn};
 use tokio_util::sync::CancellationToken;
@@ -40,9 +40,10 @@ impl Daemon {
     }
 
     /// Consumes a `Daemon` and allows it to handle connections and requests.
-    pub async fn run<RQ>(self)
+    pub async fn run<RQ, RP>(self, handler: fn(u64, Option<RQ>, CancellationToken) -> RP)
     where
-        for<'a> RQ: Decode<'a> + 'static
+        for<'a> RQ: Decode<'a> + 'static,
+        RP: Encode + 'static
     {
         loop {
             select! {
@@ -51,7 +52,7 @@ impl Daemon {
                         Ok(stream) => {
                             let cancel = self.cancel.clone();
                             
-                            spawn(handle_connection::<RQ>(stream, cancel));
+                            spawn(handle_connection::<RQ, RP>(stream, cancel, handler));
                         }
                         Err(err) => {
                             warn!("failed to accept connection: {}", err);
@@ -61,7 +62,6 @@ impl Daemon {
 
                 _ = self.cancel.cancelled() => {
                     info!("{} is shutting down...", self.name);
-
                     break;
                 }
             }
