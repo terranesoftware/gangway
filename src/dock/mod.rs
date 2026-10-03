@@ -1,4 +1,4 @@
-pub mod connection;
+mod caller;
 
 use std::io::Result;
 
@@ -8,29 +8,26 @@ use tokio::{select, spawn};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
-use crate::daemon::connection::handle_connection;
+use crate::dock::caller::handle_caller;
 
 /// A named, asynchronous daemon.
-pub struct Daemon {
-    name: String,
+pub struct Dock {
     listener: Listener,
     cancel: CancellationToken
 }
 
-impl Daemon {
-    /// Binds a `Daemon` named `name` to the given `token`.
-    pub fn bind(name: String, token: &str) -> Result<(Self, CancellationToken)> {
+impl Dock {
+    /// Binds a `Dock` to the given `berth`.
+    pub fn bind(berth: &str) -> Result<(Self, CancellationToken)> {
         let cancel = CancellationToken::new();
 
         let listener = ListenerOptions::new()
-            .name(token.to_ns_name::<GenericNamespaced>()?)
+            .name(berth.to_ns_name::<GenericNamespaced>()?)
             .create_tokio()?;
-        info!("{} is listening", name);
 
         Ok(
             (
-                Daemon {
-                    name,
+                Dock {
                     listener,
                     cancel: cancel.clone()
                 },
@@ -39,8 +36,8 @@ impl Daemon {
         )
     }
 
-    /// Consumes a `Daemon` and allows it to handle connections and requests.
-    pub async fn run<RQ, RP>(self, handler: fn(u64, Option<RQ>, CancellationToken) -> RP)
+    /// Consumes a `Dock` and allows it to handle connections and requests.
+    pub async fn open<RQ, RP>(self, handler: fn(u64, Option<RQ>, CancellationToken) -> RP)
     where
         for<'a> RQ: Decode<'a> + 'static,
         RP: Encode + 'static
@@ -52,16 +49,16 @@ impl Daemon {
                         Ok(stream) => {
                             let cancel = self.cancel.clone();
                             
-                            spawn(handle_connection::<RQ, RP>(stream, cancel, handler));
+                            spawn(handle_caller::<RQ, RP>(stream, cancel, handler));
                         }
                         Err(err) => {
-                            warn!("failed to accept connection: {}", err);
+                            warn!("failed to accept caller: {}", err);
                         }
                     }
                 }
 
                 _ = self.cancel.cancelled() => {
-                    info!("{} is shutting down...", self.name);
+                    info!("dock is shutting down...");
                     break;
                 }
             }

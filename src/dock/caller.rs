@@ -5,7 +5,7 @@ use tokio_util::{bytes::{Buf, Bytes}, codec::{FramedRead, FramedWrite, LengthDel
 use tracing::error;
 
 /// Handles a connection by attempting to read the request and sending back over the response.
-pub async fn handle_connection<RQ, RP>(stream: Stream, cancel: CancellationToken, handler: fn(u64, Option<RQ>, CancellationToken) -> RP)
+pub(super) async fn handle_caller<RQ, RP>(stream: Stream, cancel: CancellationToken, handler: fn(u64, Option<RQ>, CancellationToken) -> RP)
 where
     for<'a> RQ: Decode<'a>,
     RP: Encode

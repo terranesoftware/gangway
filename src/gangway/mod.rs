@@ -1,7 +1,8 @@
-mod sender;
+mod caller;
+
 use bitcode::{DecodeOwned, decode};
 use futures_util::StreamExt;
-pub use sender::Sender;
+pub use caller::Caller;
 use tokio::{select, sync::oneshot};
 use tracing::{info, warn};
 
@@ -10,17 +11,17 @@ use std::{collections::HashMap, io::{Error, ErrorKind::{self, BrokenPipe}, Resul
 use interprocess::local_socket::{ConnectOptions, GenericNamespaced, ToNsName, tokio::RecvHalf, traits::tokio::Stream};
 use tokio_util::{bytes::Buf, codec::{FramedRead, FramedWrite, LengthDelimitedCodec}, sync::CancellationToken};
 
-pub struct Connection<RP> {
+pub struct Gangway<RP> {
     recv: FramedRead<RecvHalf, LengthDelimitedCodec>,
-    sender: Arc<Sender<RP>>,
+    caller: Arc<Caller<RP>>,
     pending: Arc<std::sync::Mutex<HashMap<u64, oneshot::Sender<Result<RP>>>>>,
     cancel: CancellationToken
 }
 
-impl<RP: DecodeOwned> Connection<RP> {
-    pub async fn new(name: &str) -> Result<Connection<RP>> {
+impl<RP: DecodeOwned> Gangway<RP> {
+    pub async fn rig(berth: &str) -> Result<Gangway<RP>> {
         let (recv, send) = ConnectOptions::new()
-            .name(name.to_ns_name::<GenericNamespaced>()?)
+            .name(berth.to_ns_name::<GenericNamespaced>()?)
             .connect_tokio()
             .await?
             .split();
@@ -32,10 +33,10 @@ impl<RP: DecodeOwned> Connection<RP> {
         let cancel = CancellationToken::new();
 
         Ok(
-            Connection {
+            Gangway {
                 recv,
-                sender: Arc::new(
-                    Sender {
+                caller: Arc::new(
+                    Caller {
                         id: AtomicU64::new(0),
                         send,
                         pending: Arc::downgrade(&pending),
@@ -48,7 +49,7 @@ impl<RP: DecodeOwned> Connection<RP> {
         )
     }
 
-    pub async fn run(mut self) -> Result<()> {
+    pub async fn deploy(mut self) -> Result<()> {
         loop {
             select! {
                 read = self.recv.next() => {
@@ -71,11 +72,11 @@ impl<RP: DecodeOwned> Connection<RP> {
                 }
 
                 _ = self.cancel.cancelled() => {
-                    info!("connection dropping...");
+                    info!("gangway stowing...");
 
                     let mut pending = Arc::into_inner(self.pending).unwrap();
                     for (_, tx) in pending.get_mut().unwrap().drain() {
-                        _ = tx.send(Err(Error::new(BrokenPipe, "connection has been dropped")));
+                        _ = tx.send(Err(Error::new(BrokenPipe, "gangway has been stowed")));
                     }
 
                     break;
@@ -86,11 +87,11 @@ impl<RP: DecodeOwned> Connection<RP> {
         Ok(())
     }
 
-    pub fn sender(&self) -> Arc<Sender<RP>> {
-        self.sender.clone()
+    pub fn caller(&self) -> Arc<Caller<RP>> {
+        self.caller.clone()
     }
 
-    pub fn drop(&self) {
+    pub fn stow(&self) {
         self.cancel.cancel();
     }
 }

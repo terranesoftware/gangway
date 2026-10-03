@@ -1,2 +1,5 @@
-pub mod connection;
-pub mod daemon;
+mod dock;
+pub use dock::Dock;
+
+mod gangway;
+pub use gangway::{Caller, Gangway};

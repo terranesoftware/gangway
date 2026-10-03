@@ -6,15 +6,15 @@ use interprocess::local_socket::tokio::SendHalf;
 use tokio::{select, sync::oneshot::{self, channel}};
 use tokio_util::{bytes::{BufMut, BytesMut}, codec::{FramedWrite, LengthDelimitedCodec}, sync::CancellationToken};
 
-pub struct Sender<RP> {
+pub struct Caller<RP> {
     pub(super) id: AtomicU64,
     pub(super) send: tokio::sync::Mutex<FramedWrite<SendHalf, LengthDelimitedCodec>>,
     pub(super) pending: Weak<std::sync::Mutex<HashMap<u64, oneshot::Sender<Result<RP>>>>>,
     pub(super) cancel: CancellationToken
 }
 
-impl<RP> Sender<RP> {
-    pub async fn send(&self, request: impl Encode) -> Result<RP> {
+impl<RP> Caller<RP> {
+    pub async fn hail(&self, request: impl Encode) -> Result<RP> {
         select! {
             result = async {
                 let id = self.id.fetch_add(1, Ordering::Relaxed);
@@ -42,7 +42,7 @@ impl<RP> Sender<RP> {
             _ = self.cancel.cancelled() => {
                 self.send.lock().await.flush().await?;
 
-                Err(Error::new(ErrorKind::BrokenPipe, "connection is dropping or has been dropped"))?
+                Err(Error::new(ErrorKind::BrokenPipe, "caller is disembarking or has disembarked"))?
             }
         }
     }
