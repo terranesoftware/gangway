@@ -96,6 +96,10 @@ impl<RQ: Encode, RP: DecodeOwned> Gangway<RQ, RP> {
         Ok(())
     }
 
+    /// Returns an `Arc<Caller<RQ, RP>>`.
+    /// 
+    /// You can only call this method until you call [`Gangway::deploy`] since it consumes `self`.
+    /// After, you should clone the caller handle itself.
     pub fn caller(&self) -> Arc<Caller<RQ, RP>> {
         self.caller.clone()
     }

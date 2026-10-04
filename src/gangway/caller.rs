@@ -6,6 +6,7 @@ use interprocess::local_socket::tokio::SendHalf;
 use tokio::{select, sync::oneshot::{self, channel}};
 use tokio_util::{bytes::{BufMut, BytesMut}, codec::{FramedWrite, LengthDelimitedCodec}, sync::CancellationToken};
 
+/// A sender associated with a connection.
 pub struct Caller<RQ: Encode, RP> {
     pub(super) id: AtomicU64,
     pub(super) send: tokio::sync::Mutex<FramedWrite<SendHalf, LengthDelimitedCodec>>,
