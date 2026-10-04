@@ -2,12 +2,15 @@
 name = "gangway"
 version = "0.1.0"
 edition = "2024"
+readme = "README.md"
+description = "It's like playing telephone — but with one person, repeatedly."
 license = "Apache-2.0"
+repository = "https://github.com/terranesoftware/gangway"
 
 [dependencies]
 bitcode = "0.6.9"
 futures-util = { version = "0.3.34", features = ["sink"] }
 interprocess = { version = "2.4.4", features = ["tokio"] }
-tokio = "1.53.1"
+tokio = { version = "1.53.1", features = ["macros", "rt", "sync"] }
 tokio-util = { version = "0.7.19", features = ["codec"] }
 tracing = "0.1.44"

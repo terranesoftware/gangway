@@ -1,6 +1,6 @@
 mod caller;
 
-use std::io::Result;
+use std::{io::Result, sync::Arc};
 
 use bitcode::{Decode, Encode};
 use interprocess::local_socket::{GenericNamespaced, ListenerOptions, ToNsName, tokio::Listener, traits::tokio::Listener as _};
@@ -37,11 +37,14 @@ impl Dock {
     }
 
     /// Consumes a `Dock` and allows it to handle connections and requests.
-    pub async fn open<RQ, RP>(self, handler: fn(u64, Option<RQ>, CancellationToken) -> RP)
+    pub async fn open<RQ, RP, F, Fut>(self, handler: F)
     where
         for<'a> RQ: Decode<'a> + 'static,
-        RP: Encode + 'static
+        RP: Encode + 'static,
+        F: Fn(RQ, CancellationToken) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = RP> + Send + 'static
     {
+        let handler = Arc::new(handler);
         loop {
             select! {
                 accepted = self.listener.accept() => {
@@ -49,7 +52,7 @@ impl Dock {
                         Ok(stream) => {
                             let cancel = self.cancel.clone();
                             
-                            spawn(handle_caller::<RQ, RP>(stream, cancel, handler));
+                            spawn(handle_caller::<RQ, RP, F, Fut>(stream, cancel, handler.clone()));
                         }
                         Err(err) => {
                             warn!("failed to accept caller: {}", err);
