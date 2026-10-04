@@ -15,6 +15,7 @@ pub struct Caller<RQ: Encode, RP> {
 }
 
 impl<RQ: Encode, RP> Caller<RQ, RP> {
+    /// Sends a message through the associated `Gangway`.
     pub async fn hail(&self, request: RQ) -> Result<RP> {
         select! {
             result = async {
@@ -48,6 +49,7 @@ impl<RQ: Encode, RP> Caller<RQ, RP> {
         }
     }
 
+    /// Tears down the associated `Gangway`.
     pub fn stow(&self) {
         self.cancel.cancel();
     }

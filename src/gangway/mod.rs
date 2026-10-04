@@ -11,6 +11,7 @@ use std::{collections::HashMap, io::{Error, ErrorKind::{self, BrokenPipe}, Resul
 use interprocess::local_socket::{ConnectOptions, GenericNamespaced, ToNsName, tokio::RecvHalf, traits::tokio::Stream};
 use tokio_util::{bytes::Buf, codec::{FramedRead, FramedWrite, LengthDelimitedCodec}, sync::CancellationToken};
 
+/// A connection to the daemon.
 pub struct Gangway<RQ: Encode, RP> {
     recv: FramedRead<RecvHalf, LengthDelimitedCodec>,
     caller: Arc<Caller<RQ, RP>>,
@@ -19,6 +20,7 @@ pub struct Gangway<RQ: Encode, RP> {
 }
 
 impl<RQ: Encode, RP: DecodeOwned> Gangway<RQ, RP> {
+    /// Creates a connection to the given `berth`.
     pub async fn rig(berth: &str) -> Result<Gangway<RQ, RP>> {
         let (recv, send) = ConnectOptions::new()
             .name(berth.to_ns_name::<GenericNamespaced>()?)
@@ -50,6 +52,7 @@ impl<RQ: Encode, RP: DecodeOwned> Gangway<RQ, RP> {
         )
     }
 
+    /// Deploys a `Gangway` and allows callers to request and receive.
     pub async fn deploy(mut self) -> Result<()> {
         loop {
             select! {

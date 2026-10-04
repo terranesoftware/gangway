@@ -6,6 +6,8 @@ readme = "README.md"
 description = "It's like playing telephone — but with one person, repeatedly."
 license = "Apache-2.0"
 repository = "https://github.com/terranesoftware/gangway"
+keywords = ["ipc", "daemon", "tokio", "request-response"]
+categories = ["network-programming", "asynchronous", "concurrency", "os"]
 
 [dependencies]
 bitcode = "0.6.9"
